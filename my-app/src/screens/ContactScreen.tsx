@@ -10,22 +10,77 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { openWebsite } from "../utils/openUrl";
+
+const SERVICE_ID = process.env.EXPO_PUBLIC_EMAILJS_SERVICE_ID;
+const TEMPLATE_ID = process.env.EXPO_PUBLIC_EMAILJS_TEMPLATE_ID;
+const PUBLIC_KEY = process.env.EXPO_PUBLIC_EMAILJS_PUBLIC_KEY;
+const PRIVATE_KEY = process.env.EXPO_PUBLIC_EMAILJS_PRIVATE_KEY;
 
 export default function ContactScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    // placeholder action
-    Alert.alert("Wiadomość wysłana", "Dziękuję — wkrótce się odezwę.");
-    setName("");
-    setEmail("");
-    setMessage("");
+  const handleSubmit = async () => {
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      Alert.alert("Błąd", "Uzupełnij wszystkie pola.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        "https://api.emailjs.com/api/v1.0/email/send",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            service_id: SERVICE_ID,
+            template_id: TEMPLATE_ID,
+            user_id: PUBLIC_KEY,
+            accessToken: PRIVATE_KEY, // ← required in strict mode
+
+            template_params: {
+              from_name: name,
+              reply_to: email,
+              message,
+            },
+          }),
+        },
+      );
+
+      const result = await response.text();
+
+      if (!response.ok) {
+        console.log(result);
+        throw new Error("Email sending failed");
+      }
+
+      Alert.alert("Wiadomość wysłana", "Dziękuję — wkrótce się odezwę.");
+
+      setName("");
+      setEmail("");
+      setMessage("");
+    } catch (error) {
+      console.error(error);
+
+      Alert.alert("Błąd", "Nie udało się wysłać wiadomości.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} style={styles.scroll}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      style={styles.scroll}
+      keyboardShouldPersistTaps="handled"
+    >
       <View>
         <Text style={styles.tag}>KONTAKT</Text>
 
@@ -34,6 +89,7 @@ export default function ContactScreen() {
         <View style={styles.formCard}>
           <View style={styles.formGroup}>
             <Text style={styles.label}>Imię i nazwisko</Text>
+
             <TextInput
               style={styles.input}
               placeholder="Jan Kowalski"
@@ -44,11 +100,13 @@ export default function ContactScreen() {
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>E-mail</Text>
+
             <TextInput
               style={styles.input}
-              placeholder="jan@przykład.pl"
+              placeholder="jan@przyklad.pl"
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
               value={email}
               onChangeText={setEmail}
             />
@@ -56,6 +114,7 @@ export default function ContactScreen() {
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>Wiadomość</Text>
+
             <TextInput
               style={[styles.input, styles.textarea]}
               placeholder="W czym mogę pomóc?"
@@ -68,12 +127,13 @@ export default function ContactScreen() {
           </View>
 
           <Pressable
+            disabled={loading}
             style={({ pressed }) => [
               styles.ctaWrapper,
               pressed && styles.ctaPressed,
+              loading && { opacity: 0.7 },
             ]}
             onPress={handleSubmit}
-            accessibilityLabel="Wyślij wiadomość"
           >
             <LinearGradient
               colors={["#584FC0", "#938AFF"]}
@@ -81,28 +141,52 @@ export default function ContactScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.ctaRow}
             >
-              <Text style={styles.ctaText}>Wyślij</Text>
-              <Ionicons
-                name="send"
-                size={18}
-                color="#fff"
-                style={styles.ctaIcon}
-              />
+              <Text style={styles.ctaText}>
+                {loading ? "Wysyłanie..." : "Wyślij"}
+              </Text>
+
+              {!loading && (
+                <Ionicons
+                  name="send"
+                  size={18}
+                  color="#fff"
+                  style={styles.ctaIcon}
+                />
+              )}
             </LinearGradient>
           </Pressable>
         </View>
 
         <View style={styles.socialSection}>
           <Text style={styles.socialText}>Znajdziesz mnie również tutaj</Text>
+
           <View style={styles.socialRow}>
             <View style={styles.socialCircle}>
-              <Ionicons name="globe-outline" size={22} color="#584FC0" />
+              <Pressable
+                onPress={() => openWebsite({ url: "https://facebook.com" })}
+              >
+                <Ionicons name="globe-outline" size={22} color="#584FC0" />
+              </Pressable>
             </View>
+
             <View style={styles.socialCircle}>
-              <Ionicons name="briefcase-outline" size={22} color="#584FC0" />
+              <Pressable
+                onPress={() => openWebsite({ url: "https://www.linkedin.com" })}
+              >
+                <Ionicons name="briefcase-outline" size={22} color="#584FC0" />
+              </Pressable>
             </View>
+
             <View style={styles.socialCircle}>
-              <Ionicons name="share-social-outline" size={22} color="#584FC0" />
+              <Pressable
+                onPress={() => openWebsite({ url: "https://github.com/" })}
+              >
+                <Ionicons
+                  name="share-social-outline"
+                  size={22}
+                  color="#584FC0"
+                />
+              </Pressable>
             </View>
           </View>
         </View>
@@ -112,34 +196,57 @@ export default function ContactScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { backgroundColor: "#fff" },
-  container: { padding: 24, paddingBottom: 40, marginTop: 40 },
+  scroll: {
+    backgroundColor: "#fff",
+  },
+
+  container: {
+    padding: 24,
+    paddingBottom: 40,
+    marginTop: 40,
+  },
+
   tag: {
     color: "#584FC0",
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 8,
   },
+
   header: {
     fontSize: 28,
     fontWeight: "700",
     color: "#000",
     marginBottom: 12,
   },
+
   formCard: {
     marginTop: 12,
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
-    // shadow
+
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 6,
   },
-  formGroup: { marginBottom: 12 },
-  label: { color: "#596065", fontSize: 13, marginBottom: 6 },
+
+  formGroup: {
+    marginBottom: 12,
+  },
+
+  label: {
+    color: "#596065",
+    fontSize: 13,
+    marginBottom: 6,
+  },
+
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -149,9 +256,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     fontSize: 16,
   },
-  textarea: { height: 120 },
-  ctaWrapper: { marginTop: 8 },
-  ctaPressed: { opacity: 0.95 },
+
+  textarea: {
+    height: 120,
+  },
+
+  ctaWrapper: {
+    marginTop: 8,
+  },
+
+  ctaPressed: {
+    opacity: 0.95,
+  },
+
   ctaRow: {
     width: "100%",
     paddingVertical: 12,
@@ -160,12 +277,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexDirection: "row",
   },
-  ctaText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  ctaIcon: { marginLeft: 8 },
+
+  ctaText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  ctaIcon: {
+    marginLeft: 8,
+  },
+
   socialSection: {
     marginTop: 36,
     alignItems: "center",
   },
+
   socialText: {
     color: "#8A9299",
     fontSize: 14,
@@ -173,11 +300,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontWeight: "500",
   },
+
   socialRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
   },
+
   socialCircle: {
     width: 44,
     height: 44,

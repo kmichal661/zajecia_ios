@@ -6,12 +6,14 @@ import {
   StyleSheet,
   Image,
   Pressable,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import type { BottomTabParamList } from "../navigation/types";
+import { openWebsite } from "../utils/openUrl";
 
 type ProjectsNavProp = BottomTabNavigationProp<BottomTabParamList, "Projects">;
 
@@ -46,7 +48,9 @@ export default function ProjectsScreen() {
 
             <Pressable
               style={styles.cardLink}
-              onPress={() => {}}
+              onPress={() =>
+                openWebsite({ url: "https://github.com/kmichal661/recipe-hub" })
+              }
               accessibilityLabel="Zobacz szczegóły"
             >
               <Text style={styles.cardLinkText}>Zobacz szczegóły</Text>
@@ -71,7 +75,11 @@ export default function ProjectsScreen() {
 
             <Pressable
               style={styles.cardLink}
-              onPress={() => {}}
+              onPress={() =>
+                openWebsite({
+                  url: "https://github.com/kmichal661/ProjektJavaZaliczenie",
+                })
+              }
               accessibilityLabel="Zobacz szczegóły Nova"
             >
               <Text style={styles.cardLinkText}>Zobacz szczegóły</Text>
